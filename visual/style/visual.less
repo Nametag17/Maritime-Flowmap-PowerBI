@@ -1,0 +1,381 @@
+@font: "Segoe UI", wf_segoe-ui_normal, helvetica, arial, sans-serif;
+
+.wfm-root {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: @font;
+    user-select: none;
+    touch-action: none;
+}
+
+// Basemap canvas and the base flow layer are composited on their own: during a pan/zoom gesture they
+// only receive a CSS transform (no repaint), and hover only changes the base layer's opacity.
+.wfm-basemap,
+.wfm-base,
+.wfm-overlay {
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: block;
+}
+
+.wfm-basemap,
+.wfm-base {
+    transform-origin: 0 0;
+    will-change: transform;
+}
+
+.wfm-base {
+    pointer-events: none;
+    will-change: transform, opacity;
+}
+
+.wfm-overlay {
+    cursor: grab;
+
+    &:active {
+        cursor: grabbing;
+    }
+}
+
+// Non-scaling strokes keep line widths constant while the flow layers are scaled during zoom.
+.wfm-casing,
+.wfm-flow,
+.wfm-dash {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    pointer-events: none;
+    vector-effect: non-scaling-stroke;
+}
+
+// Hit areas are never painted (visibility: hidden) but still catch the pointer: pointer-events
+// "stroke"/"all" ignore visibility.
+.wfm-hit {
+    fill: none;
+    stroke: #000000;
+    stroke-linecap: round;
+    visibility: hidden;
+    pointer-events: stroke;
+    cursor: pointer;
+}
+
+// No hover hit-testing, and no labels, while the map is being dragged or zoomed.
+.wfm-moving {
+    .wfm-hit,
+    .wfm-term-hit {
+        pointer-events: none;
+    }
+
+    .wfm-labels {
+        display: none;
+    }
+}
+
+.wfm-flow.wfm-approach {
+    stroke-dasharray: 2 4; // port approach: terminal to the nearest sea lane
+}
+
+.wfm-dash {
+    stroke: rgba(255, 255, 255, 0.65);
+    stroke-dasharray: 0.1 11.9;
+    animation: wfm-dashflow 0.9s linear infinite;
+
+    &.wfm-rev {
+        animation-direction: reverse;
+    }
+}
+
+@keyframes wfm-dashflow {
+    from { stroke-dashoffset: 0; }
+    to { stroke-dashoffset: -12; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .wfm-dash {
+        animation: none;
+    }
+}
+
+.wfm-term {
+    stroke-width: 1.5;
+    pointer-events: none;
+
+    &.wfm-destination {
+        fill-opacity: 0.22; // destinations are rings, origins solid: direction reads without color
+    }
+}
+
+.wfm-term-hit {
+    fill: #000000;
+    visibility: hidden;
+    pointer-events: all;
+    cursor: pointer;
+}
+
+.wfm-label {
+    font-family: @font;
+    font-weight: 600;
+    paint-order: stroke;
+    stroke-width: 3px;
+    stroke-linejoin: round;
+    pointer-events: none;
+
+    &.wfm-label-dest {
+        font-weight: 400;
+    }
+}
+
+// Terminals and labels not involved in the highlight (flows fade as a whole layer instead).
+.wfm-dim {
+    opacity: 0.14;
+}
+
+.wfm-legend {
+    position: absolute;
+    left: 8px;
+    max-width: 46%;
+    border: 1px solid;
+    border-radius: 6px;
+    line-height: 1.25;
+
+    &.wfm-legend-topLeft {
+        top: 8px;
+    }
+
+    &.wfm-legend-bottomLeft {
+        bottom: 8px;
+    }
+
+    &.wfm-collapsed .wfm-legend-body {
+        display: none;
+    }
+}
+
+.wfm-legend-toggle {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    gap: 10px;
+    background: none;
+    border: 0;
+    color: inherit;
+    font: inherit;
+    font-weight: 600;
+    padding: 5px 8px;
+    cursor: pointer;
+}
+
+.wfm-legend-body {
+    padding: 0 8px 7px;
+    display: grid;
+    gap: 6px;
+}
+
+.wfm-legend-title {
+    opacity: 0.75;
+    margin-bottom: 2px;
+}
+
+.wfm-legend-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+
+    svg {
+        flex: none;
+        overflow: visible;
+    }
+}
+
+.wfm-legend-key {
+    flex: none;
+    width: 14px;
+    height: 3px;
+    border-radius: 2px;
+}
+
+.wfm-legend-note {
+    max-width: 220px;
+    white-space: normal;
+}
+
+.wfm-zoombar {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+
+    button {
+        width: 26px;
+        height: 26px;
+        border-radius: 5px;
+        border: 1px solid rgba(140, 156, 181, 0.45);
+        background: rgba(4, 29, 69, 0.85);
+        color: #f4faff;
+        font-size: 15px;
+        line-height: 1;
+        cursor: pointer;
+    }
+}
+
+// Built-in tooltip card: value first, then what it is, then routes with share bars.
+.wfm-tip {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 5;
+    max-width: 390px;
+    max-height: calc(100% - 8px);
+    overflow: hidden;
+    padding: 8px 10px 7px;
+    border-radius: 6px;
+    border: 1px solid;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+    pointer-events: none;
+    line-height: 1.35;
+
+    &.wfm-tip-light {
+        background: #ffffff;
+        color: #252423;
+        border-color: #e1dfdd;
+        --wfm-tip-muted: #605e5c;
+        --wfm-tip-rule: #edebe9;
+    }
+
+    &.wfm-tip-dark {
+        background: #0b2350;
+        color: #f4faff;
+        border-color: rgba(140, 156, 181, 0.4);
+        --wfm-tip-muted: #8c9cb5;
+        --wfm-tip-rule: rgba(140, 156, 181, 0.25);
+    }
+}
+
+.wfm-tip-value {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    font-size: 1.3em;
+    font-weight: 700;
+}
+
+.wfm-tip-caption {
+    font-size: 0.65em;
+    font-weight: 400;
+    color: var(--wfm-tip-muted);
+}
+
+.wfm-tip-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    margin-top: 1px;
+}
+
+.wfm-tip-key {
+    flex: none;
+    width: 14px;
+    height: 3px;
+    border-radius: 2px;
+}
+
+.wfm-tip-sub {
+    color: var(--wfm-tip-muted);
+}
+
+.wfm-tip-facts {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 1px 10px;
+    margin-top: 5px;
+    padding-top: 5px;
+    border-top: 1px solid var(--wfm-tip-rule);
+}
+
+.wfm-tip-fact-label {
+    color: var(--wfm-tip-muted);
+    white-space: nowrap;
+}
+
+.wfm-tip-rows {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 2px 14px;
+    margin-top: 5px;
+    padding-top: 5px;
+    border-top: 1px solid var(--wfm-tip-rule);
+}
+
+.wfm-tip-row-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    &.wfm-tip-more {
+        color: var(--wfm-tip-muted);
+    }
+}
+
+.wfm-tip-row-value {
+    text-align: right;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+
+    &.wfm-tip-more {
+        font-weight: 400;
+        color: var(--wfm-tip-muted);
+    }
+}
+
+.wfm-tip-note {
+    margin-top: 5px;
+    padding-top: 4px;
+    border-top: 1px solid var(--wfm-tip-rule);
+    color: var(--wfm-tip-muted);
+    font-size: 0.9em;
+
+    & + .wfm-tip-note {
+        border-top: 0;
+        padding-top: 0;
+        margin-top: 2px;
+    }
+
+    &.wfm-tip-warn {
+        color: #c4501b;
+        font-weight: 600;
+    }
+}
+
+.wfm-help {
+    position: absolute;
+    inset: 0;
+    padding: 12px 16px;
+    background: #ffffff;
+    color: #252423;
+    font-size: 12px;
+    overflow: auto;
+
+    h3 {
+        margin: 0 0 6px;
+        font-size: 14px;
+    }
+
+    ul {
+        margin: 4px 0 8px;
+        padding-left: 18px;
+    }
+
+    .wfm-note {
+        color: #605e5c;
+        max-width: 520px;
+    }
+}

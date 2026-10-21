@@ -1,0 +1,590 @@
+{
+    "dataRoles": [
+        {
+            "name": "origin",
+            "displayName": "Origin",
+            "description": "Origin terminal or port name. Shown in labels and tooltips.",
+            "kind": "Grouping"
+        },
+        {
+            "name": "originLat",
+            "displayName": "Origin latitude",
+            "description": "Decimal degrees, -90 to 90. A text column holding a number also works.",
+            "kind": "Grouping",
+            "preferredTypes": [
+                {
+                    "geography": {
+                        "latitude": true
+                    }
+                }
+            ]
+        },
+        {
+            "name": "originLon",
+            "displayName": "Origin longitude",
+            "description": "Decimal degrees, -180 to 180. A text column holding a number also works.",
+            "kind": "Grouping",
+            "preferredTypes": [
+                {
+                    "geography": {
+                        "longitude": true
+                    }
+                }
+            ]
+        },
+        {
+            "name": "destination",
+            "displayName": "Destination",
+            "description": "Destination terminal or port name. Shown in labels and tooltips.",
+            "kind": "Grouping"
+        },
+        {
+            "name": "destLat",
+            "displayName": "Destination latitude",
+            "description": "Decimal degrees, -90 to 90. A text column holding a number also works.",
+            "kind": "Grouping",
+            "preferredTypes": [
+                {
+                    "geography": {
+                        "latitude": true
+                    }
+                }
+            ]
+        },
+        {
+            "name": "destLon",
+            "displayName": "Destination longitude",
+            "description": "Decimal degrees, -180 to 180. A text column holding a number also works.",
+            "kind": "Grouping",
+            "preferredTypes": [
+                {
+                    "geography": {
+                        "longitude": true
+                    }
+                }
+            ]
+        },
+        {
+            "name": "volume",
+            "displayName": "Volume",
+            "description": "Sets the line width. Values are shown with this measure's format.",
+            "kind": "Measure",
+            "requiredTypes": [
+                {
+                    "numeric": true
+                },
+                {
+                    "integer": true
+                }
+            ]
+        },
+        {
+            "name": "color",
+            "displayName": "Color by",
+            "description": "Optional category that colors the flows, e.g. product. Needs Volume. Each value gets its own color in the Format pane.",
+            "kind": "Grouping"
+        },
+        {
+            "name": "canal",
+            "displayName": "Canal transit",
+            "description": "Optional list of canals/straits passed, e.g. Kpler \"Zone Canal Transit\". The Maritime style routes through them.",
+            "kind": "Grouping"
+        },
+        {
+            "name": "tooltips",
+            "displayName": "Tooltips",
+            "description": "Extra values to show when hovering a flow.",
+            "kind": "Measure"
+        }
+    ],
+    "dataViewMappings": [
+        {
+            "conditions": [
+                {
+                    "origin": {
+                        "max": 1
+                    },
+                    "originLat": {
+                        "max": 1
+                    },
+                    "originLon": {
+                        "max": 1
+                    },
+                    "destination": {
+                        "max": 1
+                    },
+                    "destLat": {
+                        "max": 1
+                    },
+                    "destLon": {
+                        "max": 1
+                    },
+                    "volume": {
+                        "max": 1
+                    },
+                    "color": {
+                        "max": 1
+                    },
+                    "canal": {
+                        "max": 1
+                    }
+                }
+            ],
+            "categorical": {
+                "categories": {
+                    "select": [
+                        {
+                            "bind": {
+                                "to": "origin"
+                            }
+                        },
+                        {
+                            "bind": {
+                                "to": "originLat"
+                            }
+                        },
+                        {
+                            "bind": {
+                                "to": "originLon"
+                            }
+                        },
+                        {
+                            "bind": {
+                                "to": "destination"
+                            }
+                        },
+                        {
+                            "bind": {
+                                "to": "destLat"
+                            }
+                        },
+                        {
+                            "bind": {
+                                "to": "destLon"
+                            }
+                        },
+                        {
+                            "bind": {
+                                "to": "canal"
+                            }
+                        }
+                    ],
+                    "dataReductionAlgorithm": {
+                        "top": {
+                            "count": 30000
+                        }
+                    }
+                },
+                "values": {
+                    "group": {
+                        "by": "color",
+                        "select": [
+                            {
+                                "bind": {
+                                    "to": "volume"
+                                }
+                            },
+                            {
+                                "for": {
+                                    "in": "tooltips"
+                                }
+                            }
+                        ],
+                        "dataReductionAlgorithm": {
+                            "top": {
+                                "count": 60
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    ],
+    "objects": {
+        "flowStyle": {
+            "properties": {
+                "style": {
+                    "type": {
+                        "enumeration": [
+                            {
+                                "value": "bundled",
+                                "displayName": "bundled"
+                            },
+                            {
+                                "value": "maritime",
+                                "displayName": "maritime"
+                            },
+                            {
+                                "value": "arc",
+                                "displayName": "arc"
+                            },
+                            {
+                                "value": "curved",
+                                "displayName": "curved"
+                            },
+                            {
+                                "value": "straight",
+                                "displayName": "straight"
+                            }
+                        ]
+                    }
+                },
+                "bundleFrom": {
+                    "type": {
+                        "enumeration": [
+                            {
+                                "value": "origin",
+                                "displayName": "origin"
+                            },
+                            {
+                                "value": "destination",
+                                "displayName": "destination"
+                            }
+                        ]
+                    }
+                },
+                "flowLimit": {
+                    "type": {
+                        "numeric": true
+                    }
+                },
+                "curvature": {
+                    "type": {
+                        "numeric": true
+                    }
+                },
+                "motion": {
+                    "type": {
+                        "bool": true
+                    }
+                }
+            }
+        },
+        "lines": {
+            "properties": {
+                "color": {
+                    "type": {
+                        "fill": {
+                            "solid": {
+                                "color": true
+                            }
+                        }
+                    }
+                },
+                "minWidth": {
+                    "type": {
+                        "numeric": true
+                    }
+                },
+                "maxWidth": {
+                    "type": {
+                        "numeric": true
+                    }
+                },
+                "widthScale": {
+                    "type": {
+                        "enumeration": [
+                            {
+                                "value": "linear",
+                                "displayName": "linear"
+                            },
+                            {
+                                "value": "compressed",
+                                "displayName": "compressed"
+                            }
+                        ]
+                    }
+                },
+                "opacity": {
+                    "type": {
+                        "numeric": true
+                    }
+                }
+            }
+        },
+        "colors": {
+            "properties": {
+                "fill": {
+                    "type": {
+                        "fill": {
+                            "solid": {
+                                "color": true
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "terminals": {
+            "properties": {
+                "show": {
+                    "type": {
+                        "enumeration": [
+                            {
+                                "value": "bubbles",
+                                "displayName": "bubbles"
+                            },
+                            {
+                                "value": "dots",
+                                "displayName": "dots"
+                            },
+                            {
+                                "value": "off",
+                                "displayName": "off"
+                            }
+                        ]
+                    }
+                },
+                "bubbleMax": {
+                    "type": {
+                        "numeric": true
+                    }
+                },
+                "destinationColor": {
+                    "type": {
+                        "fill": {
+                            "solid": {
+                                "color": true
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "labels": {
+            "properties": {
+                "show": {
+                    "type": {
+                        "enumeration": [
+                            {
+                                "value": "all",
+                                "displayName": "all"
+                            },
+                            {
+                                "value": "origins",
+                                "displayName": "origins"
+                            },
+                            {
+                                "value": "destinations",
+                                "displayName": "destinations"
+                            },
+                            {
+                                "value": "off",
+                                "displayName": "off"
+                            }
+                        ]
+                    }
+                },
+                "fontSize": {
+                    "type": {
+                        "numeric": true
+                    }
+                },
+                "density": {
+                    "type": {
+                        "numeric": true
+                    }
+                },
+                "color": {
+                    "type": {
+                        "fill": {
+                            "solid": {
+                                "color": true
+                            }
+                        }
+                    }
+                },
+                "shortNames": {
+                    "type": {
+                        "bool": true
+                    }
+                }
+            }
+        },
+        "map": {
+            "properties": {
+                "theme": {
+                    "type": {
+                        "enumeration": [
+                            {
+                                "value": "navy",
+                                "displayName": "navy"
+                            },
+                            {
+                                "value": "midnight",
+                                "displayName": "midnight"
+                            },
+                            {
+                                "value": "light",
+                                "displayName": "light"
+                            }
+                        ]
+                    }
+                },
+                "ocean": {
+                    "type": {
+                        "fill": {
+                            "solid": {
+                                "color": true
+                            }
+                        }
+                    }
+                },
+                "land": {
+                    "type": {
+                        "fill": {
+                            "solid": {
+                                "color": true
+                            }
+                        }
+                    }
+                },
+                "borders": {
+                    "type": {
+                        "fill": {
+                            "solid": {
+                                "color": true
+                            }
+                        }
+                    }
+                },
+                "countryLabels": {
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "seaLabels": {
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "usStates": {
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "panZoom": {
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "autoFit": {
+                    "type": {
+                        "bool": true
+                    }
+                }
+            }
+        },
+        "legend": {
+            "properties": {
+                "show": {
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "position": {
+                    "type": {
+                        "enumeration": [
+                            {
+                                "value": "topLeft",
+                                "displayName": "topLeft"
+                            },
+                            {
+                                "value": "bottomLeft",
+                                "displayName": "bottomLeft"
+                            }
+                        ]
+                    }
+                },
+                "fontSize": {
+                    "type": {
+                        "numeric": true
+                    }
+                }
+            }
+        },
+        "maritime": {
+            "properties": {
+                "follow": {
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "blockArctic": {
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "approaches": {
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "smooth": {
+                    "type": {
+                        "bool": true
+                    }
+                }
+            }
+        },
+        "richTooltip": {
+            "properties": {
+                "style": {
+                    "type": {
+                        "enumeration": [
+                            {
+                                "value": "builtin",
+                                "displayName": "builtin"
+                            },
+                            {
+                                "value": "powerbi",
+                                "displayName": "powerbi"
+                            }
+                        ]
+                    }
+                },
+                "theme": {
+                    "type": {
+                        "enumeration": [
+                            {
+                                "value": "light",
+                                "displayName": "light"
+                            },
+                            {
+                                "value": "dark",
+                                "displayName": "dark"
+                            }
+                        ]
+                    }
+                },
+                "fontSize": {
+                    "type": {
+                        "numeric": true
+                    }
+                },
+                "maxRows": {
+                    "type": {
+                        "numeric": true
+                    }
+                },
+                "shortNames": {
+                    "type": {
+                        "bool": true
+                    }
+                }
+            }
+        }
+    },
+    "tooltips": {
+        "supportedTypes": {
+            "default": true,
+            "canvas": true
+        },
+        "roles": [
+            "tooltips"
+        ]
+    },
+    "supportsLandingPage": true,
+    "supportsMultiVisualSelection": true,
+    "privileges": []
+}
