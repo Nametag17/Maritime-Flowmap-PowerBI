@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Flow Map Mockup</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="page">
+    <header class="topbar card">
+      <div class="vlabel" aria-hidden="true">DESIGN</div>
+      <div class="controls" id="controls" aria-label="Design controls (stand-in for the Power BI Format pane)"></div>
+    </header>
+
+    <div class="statusbar">
+      <span class="summary" id="summary"></span>
+      <span class="chip" id="chip" hidden>
+        <span id="chip-text"></span>
+        <button type="button" id="chip-clear" aria-label="Clear cross-filter">✕</button>
+      </span>
+    </div>
+
+    <main class="replica">
+      <section class="card table-card" aria-label="Origin terminals (dashboard table)">
+        <table class="dtable">
+          <thead><tr><th>Origin Terminal</th><th>Country</th><th class="num">Volume (bbls)</th></tr></thead>
+          <tbody id="origin-rows"></tbody>
+          <tfoot id="origin-total"></tfoot>
+        </table>
+      </section>
+
+      <section class="card visual-card">
+        <div class="visual" id="visual">
+          <canvas id="basemap" aria-hidden="true"></canvas>
+          <svg id="overlay" role="img" aria-label="Map of cargo flows between terminals"></svg>
+          <div class="legend" id="legend"></div>
+          <div class="zoombar">
+            <button type="button" id="zoom-in" aria-label="Zoom in">+</button>
+            <button type="button" id="zoom-out" aria-label="Zoom out">−</button>
+            <button type="button" id="zoom-fit" aria-label="Fit all flows">⤢</button>
+          </div>
+          <div class="credit">Natural Earth</div>
+          <div class="tooltip" id="tooltip" role="tooltip" hidden></div>
+        </div>
+      </section>
+
+      <section class="card table-card" aria-label="Destination terminals (dashboard table)">
+        <table class="dtable">
+          <thead><tr><th>Destination Terminal</th><th>Country</th><th class="num">Volume (bbls)</th></tr></thead>
+          <tbody id="dest-rows"></tbody>
+          <tfoot id="dest-total"></tfoot>
+        </table>
+      </section>
+    </main>
+
+    <section class="notes">
+      <h2>What to decide from this mockup</h2>
+      <ol>
+        <li><b>Flow style.</b> Bundled (the original "Flow" tree) or separate curves? Which one did your users have?</li>
+        <li><b>Map look.</b> Navy matches the dashboard, Midnight is neutral, Light is for light reports.</li>
+        <li><b>Terminals.</b> Bubbles sized by volume, plain dots, or nothing?</li>
+        <li><b>Labels.</b> Which terminal names should always be visible at dashboard size?</li>
+        <li><b>Clicking.</b> A click on a flow or terminal filters the side tables, and a click on a table row filters the map, the way Power BI cross-filtering works. Is that what users expect?</li>
+        <li><b>Direction.</b> Do the flowing dashes help, or are they noise?</li>
+        <li><b>Maritime.</b> Try it with the US and Middle East samples. Routes follow the sea lanes through the canals and straits Kpler recorded, and lanes thicken where routes share them. Does it read well, and should it be the default for long-haul views?</li>
+      </ol>
+      <p class="fine">Everything inside the map frame is the visual itself. The navy cards around it stand in for your dashboard tables and for Power BI's Format pane. Drag to pan, scroll or double-click to zoom, hover for details, click to filter.</p>
+    </section>
+
+    <footer class="footer">
+      Mockup v0.2 · Curves: original Flowmap layout engine (MIT, © 2017 Weiwei Cui) · Map data: Natural Earth (public domain) via world-atlas and us-atlas · Sea lanes: Oak Ridge National Laboratory Global Shipping Lane Network with Eurostat SeaRoute additions, via searoute-py (Apache-2.0) · d3 and topojson-client (ISC)
+    </footer>
+  </div>
+
+  <script src="vendor/d3.v7.9.0.min.js"></script>
+  <script src="vendor/topojson-client.v3.1.0.min.js"></script>
+  <script src="vendor/flowmap-engine.js"></script>
+  <script src="data/world-50m.js"></script>
+  <script src="data/world-10m.js"></script>
+  <script src="data/us-states.js"></script>
+  <script src="data/marnet.js"></script>
+  <!-- Samples are licensed Kpler data (git-ignored); missing ones are simply not offered. -->
+  <script src="data/sample-flows.js"></script>
+  <script src="data/sample-us-2025.js"></script>
+  <script src="data/sample-me-2025.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
