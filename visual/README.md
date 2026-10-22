@@ -38,6 +38,11 @@ Hovering a chokepoint highlights its routes; clicking it filters the page to the
 Clicking a flow, terminal or chokepoint cross-filters the other visuals on the page; right-click opens
 the Power BI context menu.
 
+The zoom bar (bottom right) has zoom in, zoom out and **⌂ fit**: it zooms to the trades on the map, or
+to the selection when a flow, terminal or chokepoint is selected. With "Fit to data when it changes" on,
+the map also refits whenever filters change. For a bigger map use Power BI's **Focus mode** (the visual
+header's expand icon) or View › Full screen; a custom visual cannot go fullscreen itself.
+
 **Maritime routing:** routes go through every recorded transit and avoid tracked chokepoints that
 weren't recorded. When a record is inconsistent (e.g. Bab El Mandeb without Suez), the route keeps the
 recorded passages and may also use unrecorded ones (the tooltip says so). Records that still can't be

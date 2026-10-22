@@ -138,7 +138,8 @@ export class Visual implements IVisual {
         };
         button("+", "Zoom in", () => select(this.svg).transition().duration(250).call(this.zoomBehavior.scaleBy, 2));
         button("−", "Zoom out", () => select(this.svg).transition().duration(250).call(this.zoomBehavior.scaleBy, 0.5));
-        button("⤢", "Fit all flows", () => this.fit(true));
+        // A "home" icon: an expand-arrows icon reads as fullscreen, which Power BI's own Focus mode provides.
+        button("⌂", "Fit to the trades on the map (or to the selection)", () => this.fit(true, this.selected));
     }
 
     public update(options: VisualUpdateOptions): void {
@@ -313,8 +314,9 @@ export class Visual implements IVisual {
         this.obstacleBoxes = boxes;
     }
 
-    private fit(animate: boolean): void {
-        const e = this.flows.extent();
+    /** Zooms to the trades on the map, or to the selected ones when given. */
+    private fit(animate: boolean, routeIds: Set<number> | null = null): void {
+        const e = this.flows.extent(routeIds);
         if (!e || !this.view.W) {
             return;
         }
