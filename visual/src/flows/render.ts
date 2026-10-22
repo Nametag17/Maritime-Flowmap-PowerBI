@@ -44,7 +44,7 @@ export interface FlowHandlers {
     /** Called at most once per animation frame, only when the hovered item changes. */
     hover(target: HoverTarget | null, event: MouseEvent | null): void;
     move(event: MouseEvent): void;
-    click(routeIds: number[], event: MouseEvent): void;
+    click(target: HoverTarget, event: MouseEvent): void;
     context(routeIds: number[], event: MouseEvent): void;
 }
 
@@ -113,7 +113,7 @@ export class FlowLayer {
             const t = this.targetOf(e.target);
             if (t) {
                 e.stopImmediatePropagation(); // the visual's background handler is on the same element
-                this.handlers.click(t.item.routeIds, e);
+                this.handlers.click(t, e);
             }
         });
         top.addEventListener("contextmenu", e => {

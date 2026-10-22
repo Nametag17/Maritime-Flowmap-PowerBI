@@ -38,6 +38,16 @@ Hovering a chokepoint highlights its routes; clicking it filters the page to the
 Clicking a flow, terminal or chokepoint cross-filters the other visuals on the page; right-click opens
 the Power BI context menu.
 
+**Pinned details** (Tooltip › Pin details on click, on by default): a click also pins the item's card.
+It lists every route ("+N more" expands the list), with a search box. Hovering a row lights that route
+up on the map, and checking rows keeps them highlighted against the rest. "Checked only" trims the card
+to the checked rows, e.g. for a screenshot, while the map still draws every route. Drag the card
+anywhere; × or a click on the empty map closes it. While a card is pinned, hovering the map shows
+nothing else, so the view stays still. Ctrl+click adds to the selection without pinning. The pinned
+card is always the built-in card (Power BI's own tooltip can't be pinned).
+
+For a bigger map use Power BI's Focus mode (the visual header's expand icon) or View › Full screen.
+
 **Maritime routing:** routes go through every recorded transit and avoid tracked chokepoints that
 weren't recorded. When a record is inconsistent (e.g. Bab El Mandeb without Suez), the route keeps the
 recorded passages and may also use unrecorded ones (the tooltip says so). Records that still can't be

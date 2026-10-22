@@ -27,6 +27,8 @@ export interface TooltipContext {
     maxRows: number;
     /** A route's flow color, for row bars and keys (destination terminals are pale rings). */
     colorOf: (r: Route) => string;
+    /** Clicking pins the card (the click hint says so). */
+    pinOnClick: boolean;
 }
 
 export interface TipRow {
@@ -35,6 +37,9 @@ export interface TipRow {
     /** Share of the tooltip's total, 0..1, drawn as a small bar. */
     share?: number;
     color?: string;
+    /** The route the row stands for, and the text a search in the pinned card matches. */
+    routeId?: number;
+    search?: string;
 }
 
 /** Everything a tooltip says, independent of how it is drawn (built-in card or Power BI tooltip). */
@@ -49,7 +54,8 @@ export interface TipModel {
     facts: { label: string; value: string }[];
     rows: TipRow[];
     more?: TipRow;
-    notes: { text: string; warn?: boolean }[];
+    /** hint: "click to …" advice, which the pinned card drops. */
+    notes: { text: string; warn?: boolean; hint?: boolean }[];
 }
 
 const pct = (x: number) => (x < 0.001 ? "<0.1%" : (100 * x).toFixed(1) + "%");
@@ -105,7 +111,10 @@ export function describeSegment(s: Segment, c: TooltipContext): TipModel {
             }
         }
         m.facts.push(...extraTooltips(r, c));
-        m.notes.push({ text: sea ? "Indicative sea route, not a vessel track · click to filter" : "Click to filter" });
+        if (sea) {
+            m.notes.push({ text: "Indicative sea route, not a vessel track" });
+        }
+        m.notes.push(clickHint(c));
         return m;
     }
 
@@ -125,7 +134,10 @@ export function describeSegment(s: Segment, c: TooltipContext): TipModel {
         subs: share ? [{ label: "Share", text: share }] : [], facts: [], rows: [], notes: []
     };
     listRoutes(m, routes, total, rowLabel, c);
-    m.notes.push({ text: (s.kind ? "Indicative sea routes · " : "") + "click to filter" });
+    if (s.kind) {
+        m.notes.push({ text: "Indicative sea routes" });
+    }
+    m.notes.push(clickHint(c));
     return m;
 }
 
@@ -148,7 +160,7 @@ export function describeNode(n: FlowNode, c: TooltipContext): TipModel {
     }
     const name = (s: string) => (c.shortNames ? splitName(s)[0] : s);
     listRoutes(m, routes, n.vol, r => (r.origin.key === n.place.t.key ? "→ " + name(r.destination.name) : "← " + name(r.origin.name)), c);
-    m.notes.push({ text: "Click to filter" });
+    m.notes.push(clickHint(c));
     return m;
 }
 
@@ -167,9 +179,13 @@ export function describeChokepoint(p: Chokepoint, c: TooltipContext, color: stri
                 : "Bind a canal transit field to see the volume through it"
     });
     if (routes.length) {
-        m.notes.push({ text: "Click to filter" });
+        m.notes.push(clickHint(c));
     }
     return m;
+}
+
+function clickHint(c: TooltipContext): { text: string; hint: boolean } {
+    return { text: c.pinOnClick ? "Click to filter and pin these details" : "Click to filter", hint: true };
 }
 
 /** What tells apart two routes between the same terminals: the recorded transit, else the color category. */
@@ -188,7 +204,10 @@ function listRoutes(m: TipModel, routes: Route[], total: number, label: (r: Rout
     }
     for (const r of shown) {
         const base = label(r), extra = count.get(base) > 1 ? distinction(r) : "";
-        m.rows.push({ label: extra ? base + " · " + extra : base, value: c.format(r.volume), share: total > 0 ? r.volume / total : 0, color: c.colorOf(r) });
+        m.rows.push({
+            label: extra ? base + " · " + extra : base, value: c.format(r.volume), share: total > 0 ? r.volume / total : 0, color: c.colorOf(r),
+            routeId: r.id, search: [r.origin.name, r.destination.name, r.canal || "", r.color || ""].join(" ").toLowerCase()
+        });
     }
     if (routes.length > shown.length) {
         const rest = routes.slice(shown.length).reduce((s, r) => s + r.volume, 0);

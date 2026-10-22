@@ -360,6 +360,121 @@
     }
 }
 
+// Pinned card: interactive, unlike the hover card (which ignores the pointer). Drag it by its body.
+.wfm-pin {
+    pointer-events: auto;
+    z-index: 6;
+    min-width: 230px;
+    padding-right: 28px;
+    cursor: move;
+
+    &.wfm-dragging {
+        opacity: 0.92;
+    }
+}
+
+.wfm-pin-close {
+    position: absolute;
+    top: 4px;
+    right: 5px;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: none;
+    color: var(--wfm-tip-muted);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+
+    &:hover {
+        background: var(--wfm-tip-rule);
+        color: inherit;
+    }
+}
+
+.wfm-pin-tools {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--wfm-tip-rule);
+}
+
+.wfm-pin-search,
+.wfm-pin-only {
+    font: inherit;
+    font-size: 0.9em;
+    padding: 2px 6px;
+    border: 1px solid var(--wfm-tip-rule);
+    border-radius: 4px;
+    background: transparent;
+    color: inherit;
+}
+
+.wfm-pin-search {
+    flex: 1;
+    min-width: 0;
+    cursor: text;
+    user-select: text;
+}
+
+.wfm-pin-only {
+    flex: none;
+    cursor: pointer;
+
+    &:disabled {
+        opacity: 0.45;
+        cursor: default;
+    }
+}
+
+.wfm-pin-rows {
+    margin-top: 5px;
+    padding-top: 4px;
+    border-top: 1px solid var(--wfm-tip-rule);
+    overflow-y: auto;
+    cursor: default;
+}
+
+.wfm-pin-row {
+    display: grid;
+    grid-template-columns: 10px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 2px 8px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    cursor: pointer;
+
+    &:hover,
+    &:focus-visible {
+        background: var(--wfm-tip-rule);
+        outline: none;
+    }
+
+    &.wfm-on .wfm-tip-row-label {
+        font-weight: 600;
+    }
+
+    &.wfm-pin-more {
+        display: block;
+        color: var(--wfm-tip-muted);
+    }
+}
+
+.wfm-pin-check {
+    width: 8px;
+    height: 8px;
+    border: 1.5px solid var(--wfm-tip-muted);
+    border-radius: 2px;
+}
+
+.wfm-pin-empty {
+    padding: 2px 4px;
+    color: var(--wfm-tip-muted);
+}
+
 .wfm-help {
     position: absolute;
     inset: 0;

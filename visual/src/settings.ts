@@ -143,10 +143,11 @@ class TooltipCard extends FormattingSettingsCard {
     fontSize = number("fontSize", "Text size", 12, 9, 18);
     maxRows = number("maxRows", "Routes listed", 6, 1, 20);
     shortNames = toggle("shortNames", "Short terminal names", true);
+    pinOnClick = toggle("pinOnClick", "Pin details on click (search, check routes)", true);
 
     name = "richTooltip";
     displayName = "Tooltip";
-    slices: FormattingSettingsSlice[] = [this.style, this.theme, this.fontSize, this.maxRows, this.shortNames];
+    slices: FormattingSettingsSlice[] = [this.style, this.theme, this.fontSize, this.maxRows, this.shortNames, this.pinOnClick];
 }
 
 class LegendCard extends FormattingSettingsCard {

@@ -2,13 +2,37 @@
 
 import { TipModel } from "./tooltip";
 
-function div(cls: string, text?: string): HTMLDivElement {
+export function div(cls: string, text?: string): HTMLDivElement {
     const d = document.createElement("div");
     d.className = cls;
     if (text !== undefined) {
         d.textContent = text; // tooltip text is data: never innerHTML
     }
     return d;
+}
+
+/** The card's top part, shared with the pinned card: the number, what it is, the title, sub-lines and facts. */
+export function appendSummary(el: HTMLElement, m: TipModel): void {
+    const head = div("wfm-tip-value", m.value);
+    head.append(div("wfm-tip-caption", m.caption));
+    const title = div("wfm-tip-title");
+    if (m.color) {
+        const key = div("wfm-tip-key");
+        key.style.background = m.color;
+        title.append(key);
+    }
+    title.append(div("", m.title));
+    el.append(head, title);
+    for (const s of m.subs) {
+        el.append(div("wfm-tip-sub", s.text));
+    }
+    if (m.facts.length) {
+        const facts = div("wfm-tip-facts");
+        for (const f of m.facts) {
+            facts.append(div("wfm-tip-fact-label", f.label), div("wfm-tip-fact-value", f.value));
+        }
+        el.append(facts);
+    }
 }
 
 /**
@@ -31,28 +55,7 @@ export class RichTooltip {
         this.el.className = "wfm-tip wfm-tip-" + theme;
         this.el.style.fontSize = fontSize + "px";
         this.el.replaceChildren();
-
-        const head = div("wfm-tip-value", m.value);
-        head.append(div("wfm-tip-caption", m.caption));
-        const title = div("wfm-tip-title");
-        if (m.color) {
-            const key = div("wfm-tip-key");
-            key.style.background = m.color;
-            title.append(key);
-        }
-        title.append(div("", m.title));
-        this.el.append(head, title);
-        for (const s of m.subs) {
-            this.el.append(div("wfm-tip-sub", s.text));
-        }
-
-        if (m.facts.length) {
-            const facts = div("wfm-tip-facts");
-            for (const f of m.facts) {
-                facts.append(div("wfm-tip-fact-label", f.label), div("wfm-tip-fact-value", f.value));
-            }
-            this.el.append(facts);
-        }
+        appendSummary(this.el, m);
 
         if (m.rows.length) {
             // Route, then its volume as the bold number on the row (Angel preferred this to share bars).
