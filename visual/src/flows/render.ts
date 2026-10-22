@@ -449,29 +449,24 @@ export class FlowLayer {
         this.dimmedNodes = dim;
     }
 
-    /** Base-coordinate extent of what is drawn (only of the given routes, when some are given), for fit-to-data. */
-    public extent(routeIds: Set<number> | null = null): [[number, number], [number, number]] | null {
+    /** Base-coordinate extent of what is drawn, for fit-to-data. */
+    public extent(): [[number, number], [number, number]] | null {
         if (!this.model || !this.model.nodes.length) {
             return null;
         }
-        const on = (ids: number[]) => !routeIds || ids.some(id => routeIds.has(id));
         let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
         const add = (x: number, y: number) => {
             x = Math.max(0, Math.min(WORLD, x)); // sea lanes unwrapped past the date line
             x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y);
         };
         for (const n of this.model.nodes) {
-            if (on(n.routeIds)) {
-                add(n.place.bx, n.place.by);
-            }
+            add(n.place.bx, n.place.by);
         }
         for (const s of this.model.segments) {
-            if (on(s.routeIds)) {
-                for (const [x, y] of s.pts || []) {
-                    add(x, y);
-                }
+            for (const [x, y] of s.pts || []) {
+                add(x, y);
             }
         }
-        return isFinite(x0) ? [[x0, y0], [x1, y1]] : routeIds ? this.extent(null) : null;
+        return [[x0, y0], [x1, y1]];
     }
 }
