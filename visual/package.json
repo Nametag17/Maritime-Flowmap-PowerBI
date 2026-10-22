@@ -1,7 +1,7 @@
 {
   "name": "maritime-flowmap",
   "description": "Maritime Flow Map: Power BI custom visual for seaborne cargo flows.",
-  "version": "1.2.3",
+  "version": "1.2.6",
   "repository": {
     "type": "git",
     "url": "https://github.com/Nametag17/Maritime-Flowmap-PowerBI"

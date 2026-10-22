@@ -64,6 +64,21 @@ class MaritimeCard extends FormattingSettingsCard {
     slices: FormattingSettingsSlice[] = [this.follow, this.blockArctic, this.approaches, this.smooth];
 }
 
+/** Markers for the chokepoints Kpler tracks, with the volume through each (any flow style). */
+class ChokepointsCard extends FormattingSettingsCard {
+    show = toggle("show", "Show chokepoints", true);
+    which = dropdown("which", "Chokepoints", [
+        item("all", "All tracked (canals, straits, Cape)"), item("canals", "Panama and Suez canals"), item("panama", "Panama Canal only")
+    ], "all");
+    onlyActive = toggle("onlyActive", "Only those with flows on the map", true);
+    label = dropdown("label", "Label", [item("both", "Name and volume"), item("name", "Name"), item("off", "Off")], "both");
+    color = color("color", "Marker color", "#f2b134");
+
+    name = "chokepoints";
+    displayName = "Chokepoints";
+    slices: FormattingSettingsSlice[] = [this.show, this.which, this.onlyActive, this.label, this.color];
+}
+
 class LinesCard extends FormattingSettingsCard {
     color = color("color", "Color", "#e66c37");
     minWidth = number("minWidth", "Minimum width", 2, 0.5, 20);
@@ -128,10 +143,11 @@ class TooltipCard extends FormattingSettingsCard {
     fontSize = number("fontSize", "Text size", 12, 9, 18);
     maxRows = number("maxRows", "Routes listed", 6, 1, 20);
     shortNames = toggle("shortNames", "Short terminal names", true);
+    pinOnClick = toggle("pinOnClick", "Pin details on click (search, check routes)", true);
 
     name = "richTooltip";
     displayName = "Tooltip";
-    slices: FormattingSettingsSlice[] = [this.style, this.theme, this.fontSize, this.maxRows, this.shortNames];
+    slices: FormattingSettingsSlice[] = [this.style, this.theme, this.fontSize, this.maxRows, this.shortNames, this.pinOnClick];
 }
 
 class LegendCard extends FormattingSettingsCard {
@@ -147,6 +163,7 @@ class LegendCard extends FormattingSettingsCard {
 export class VisualFormattingSettingsModel extends FormattingSettingsModel {
     flowStyle = new FlowStyleCard();
     maritime = new MaritimeCard();
+    chokepoints = new ChokepointsCard();
     lines = new LinesCard();
     colors = new ColorsCard();
     terminals = new TerminalsCard();
@@ -155,7 +172,7 @@ export class VisualFormattingSettingsModel extends FormattingSettingsModel {
     tooltip = new TooltipCard();
     legend = new LegendCard();
 
-    cards: FormattingSettingsCard[] = [this.flowStyle, this.maritime, this.lines, this.colors, this.terminals, this.labels, this.map, this.tooltip, this.legend];
+    cards: FormattingSettingsCard[] = [this.flowStyle, this.maritime, this.chokepoints, this.lines, this.colors, this.terminals, this.labels, this.map, this.tooltip, this.legend];
 }
 
 /** Value of a dropdown slice as its string key. */

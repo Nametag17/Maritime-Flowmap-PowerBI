@@ -4,6 +4,7 @@ import { ZoomTransform } from "d3-zoom";
 import { line, curveCatmullRom } from "d3-shape";
 
 import { FlowModel, Segment, FlowNode } from "./model";
+import { Chokepoint } from "../maritime/chokepoints";
 import { View, LEVEL20, WORLD } from "../map/mercator";
 import { MapTheme } from "../map/themes";
 import { Box, overlaps, textWidth } from "../util";
@@ -26,22 +27,30 @@ export interface FlowRenderOptions {
     curvature: number;
     /** Maritime style: round off the sea-lane network's corners. */
     smooth: boolean;
+    /** Chokepoint markers (empty when off), their labels and color, and the volume format for labels. */
+    chokepoints: Chokepoint[];
+    chokeLabels: "both" | "name" | "off";
+    chokeColor: string;
+    format: (v: number) => string;
 }
+
+const CHOKE_R = 6; // half-diagonal of the chokepoint diamond, px
 
 const smoothLine = line().curve(curveCatmullRom.alpha(0.5));
 
-export type HoverTarget = { kind: "segment"; item: Segment } | { kind: "node"; item: FlowNode };
+export type HoverTarget = { kind: "segment"; item: Segment } | { kind: "node"; item: FlowNode } | { kind: "choke"; item: Chokepoint };
 
 export interface FlowHandlers {
     /** Called at most once per animation frame, only when the hovered item changes. */
     hover(target: HoverTarget | null, event: MouseEvent | null): void;
     move(event: MouseEvent): void;
-    click(routeIds: number[], event: MouseEvent): void;
+    click(target: HoverTarget, event: MouseEvent): void;
     context(routeIds: number[], event: MouseEvent): void;
 }
 
 interface SegmentEls { casing: SVGPathElement; line: SVGPathElement; dash: SVGPathElement | null; hit: SVGPathElement; }
 interface NodeEls { dot: SVGCircleElement | null; hit: SVGCircleElement; label: SVGTextElement | null; }
+interface ChokeEls { mark: SVGPathElement; hit: SVGCircleElement; label: SVGTextElement | null; }
 
 function el<K extends keyof SVGElementTagNameMap>(parent: Element, tag: K, attrs: Record<string, string | number>): SVGElementTagNameMap[K] {
     const e = document.createElementNS(SVG_NS, tag);
@@ -64,7 +73,7 @@ function el<K extends keyof SVGElementTagNameMap>(parent: Element, tag: K, attrs
  * Mouse events are delegated and coalesced to one hover change per frame.
  */
 export class FlowLayer {
-    private g: Record<"casings" | "lines" | "dashes" | "highlight" | "hits" | "nodes" | "labels", SVGGElement>;
+    private g: Record<"casings" | "lines" | "dashes" | "highlight" | "hits" | "nodes" | "chokes" | "labels", SVGGElement>;
     private model: FlowModel | null = null;
     private opts: FlowRenderOptions | null = null;
     private segs: Segment[] = [];
@@ -72,6 +81,9 @@ export class FlowLayer {
     private nodes: FlowNode[] = [];
     private nodeEls: NodeEls[] = [];
     private nodePos: [number, number][] = [];
+    private chokes: Chokepoint[] = [];
+    private chokeEls: ChokeEls[] = [];
+    private chokePos: [number, number][] = [];
     /** The transform the paths were last built for; gestures move the layers relative to it. */
     private built: ZoomTransform | null = null;
     private highlighted: Set<number> | null = null;
@@ -84,7 +96,7 @@ export class FlowLayer {
         const g = (parent: Element, name: string) => el(parent, "g", { class: "wfm-" + name });
         this.g = {
             casings: g(base, "casings"), lines: g(base, "lines"), dashes: g(base, "dashes"),
-            highlight: g(top, "highlight"), hits: g(top, "hits"), nodes: g(top, "nodes"), labels: g(top, "labels")
+            highlight: g(top, "highlight"), hits: g(top, "hits"), nodes: g(top, "nodes"), chokes: g(top, "chokes"), labels: g(top, "labels")
         };
         top.addEventListener("mouseover", e => this.queueHover(this.targetOf(e.target), e));
         top.addEventListener("mouseout", e => {
@@ -101,7 +113,7 @@ export class FlowLayer {
             const t = this.targetOf(e.target);
             if (t) {
                 e.stopImmediatePropagation(); // the visual's background handler is on the same element
-                this.handlers.click(t.item.routeIds, e);
+                this.handlers.click(t, e);
             }
         });
         top.addEventListener("contextmenu", e => {
@@ -119,12 +131,15 @@ export class FlowLayer {
         if (!target || !target.getAttribute) {
             return null;
         }
-        const s = target.getAttribute("data-seg"), n = target.getAttribute("data-node");
+        const s = target.getAttribute("data-seg"), n = target.getAttribute("data-node"), c = target.getAttribute("data-choke");
         if (s !== null) {
             return { kind: "segment", item: this.segs[+s] };
         }
         if (n !== null) {
             return { kind: "node", item: this.nodes[+n] };
+        }
+        if (c !== null) {
+            return { kind: "choke", item: this.chokes[+c] };
         }
         return null;
     }
@@ -195,6 +210,25 @@ export class FlowLayer {
             }
             return els;
         });
+
+        // Chokepoints: a diamond per passage, above the terminals; labels take priority over terminal labels.
+        this.chokes = opts.chokepoints;
+        this.chokeEls = this.chokes.map((c, i) => {
+            const els: ChokeEls = {
+                mark: el(this.g.chokes, "path", {
+                    class: "wfm-choke", d: `M0,${-CHOKE_R}L${CHOKE_R},0L0,${CHOKE_R}L${-CHOKE_R},0Z`, fill: opts.chokeColor, stroke: opts.theme.casing
+                }),
+                hit: el(this.g.chokes, "circle", { class: "wfm-term-hit", r: 11, "data-choke": i }),
+                label: null
+            };
+            if (opts.chokeLabels !== "off") {
+                els.label = el(this.g.labels, "text", {
+                    class: "wfm-label wfm-label-choke", fill: opts.chokeColor, stroke: opts.theme.halo, "font-size": opts.labelSize
+                });
+                els.label.textContent = opts.chokeLabels === "both" && c.basis !== "none" ? c.name + " · " + opts.format(c.volume) : c.name;
+            }
+            return els;
+        });
     }
 
     /**
@@ -245,6 +279,14 @@ export class FlowLayer {
             els.hit.setAttribute("cx", String(x));
             els.hit.setAttribute("cy", String(y));
         });
+        this.chokes.forEach((c, i) => {
+            const x = t.x + t.k * c.bx, y = t.y + t.k * c.by;
+            this.chokePos[i] = [x, y];
+            const els = this.chokeEls[i];
+            els.mark.setAttribute("transform", `translate(${x.toFixed(1)},${y.toFixed(1)})`);
+            els.hit.setAttribute("cx", String(x));
+            els.hit.setAttribute("cy", String(y));
+        });
     }
 
     private segmentPath(s: Segment, sx: (x: number) => number, sy: (y: number) => number, t: ZoomTransform): string {
@@ -291,6 +333,19 @@ export class FlowLayer {
     /** Greedy, collision-free labels: heaviest terminals first, capped by the space available. */
     private placeLabels(view: View, obstacles: Box[]): void {
         const o = this.opts, boxes = obstacles.slice();
+        this.chokes.forEach((c, i) => {
+            const [x, y] = this.chokePos[i];
+            boxes.push({ x0: x - CHOKE_R, y0: y - CHOKE_R, x1: x + CHOKE_R, y1: y + CHOKE_R });
+        });
+        // Chokepoint labels first, and allowed over terminal dots (their halo keeps them readable): there
+        // are at most five, and they are what the map is often read for.
+        this.chokes.forEach((c, i) => {
+            const label = this.chokeEls[i].label;
+            if (label) {
+                const [x, y] = this.chokePos[i];
+                this.placeLabel(label, x, y, CHOKE_R, "600 ", view, boxes);
+            }
+        });
         if (o.terminals !== "off") {
             this.nodes.forEach((n, i) => {
                 const [x, y] = this.nodePos[i];
@@ -304,34 +359,45 @@ export class FlowLayer {
             if (!label) {
                 return;
             }
-            const [x, y] = this.nodePos[i];
-            if (placed >= maxLabels || x < 0 || y < 0 || x > view.W || y > view.H) {
+            if (placed >= maxLabels) {
                 label.style.display = "none";
                 return;
             }
-            const w = textWidth(label.textContent, (n.role === "destination" ? "400 " : "600 ") + o.labelSize + "px " + FONT);
-            const h = o.labelSize + 2, r = o.terminals === "off" ? 2 : n.r;
-            const options: [number, number, string][] = [
-                [x + r + 4, y - h / 2, "start"],
-                [x - r - 4 - w, y - h / 2, "end"],
-                [x - w / 2, y - r - 3 - h, "middle"],
-                [x - w / 2, y + r + 3, "middle"]
-            ];
-            for (const [x0, y0, anchor] of options) {
-                const box = { x0, y0, x1: x0 + w, y1: y0 + h };
-                if (box.x0 < 2 || box.y0 < 2 || box.x1 > view.W - 2 || box.y1 > view.H - 2 || overlaps(box, boxes)) {
-                    continue;
-                }
-                label.setAttribute("x", String(anchor === "start" ? x0 : anchor === "end" ? x0 + w : x0 + w / 2));
-                label.setAttribute("y", String(y0 + h - 3));
-                label.setAttribute("text-anchor", anchor);
-                label.style.display = "";
-                boxes.push(box);
+            const [x, y] = this.nodePos[i];
+            if (this.placeLabel(label, x, y, o.terminals === "off" ? 2 : n.r, n.role === "destination" ? "400 " : "600 ", view, boxes)) {
                 placed++;
-                return;
             }
-            label.style.display = "none";
         });
+    }
+
+    /** Puts a label beside its point (right, left, above or below), clear of the boxes already taken. */
+    private placeLabel(label: SVGTextElement, x: number, y: number, r: number, weight: string, view: View, boxes: Box[]): boolean {
+        if (x < 0 || y < 0 || x > view.W || y > view.H) {
+            label.style.display = "none";
+            return false;
+        }
+        const size = this.opts.labelSize;
+        const w = textWidth(label.textContent, weight + size + "px " + FONT), h = size + 2;
+        const options: [number, number, string][] = [
+            [x + r + 4, y - h / 2, "start"],
+            [x - r - 4 - w, y - h / 2, "end"],
+            [x - w / 2, y - r - 3 - h, "middle"],
+            [x - w / 2, y + r + 3, "middle"]
+        ];
+        for (const [x0, y0, anchor] of options) {
+            const box = { x0, y0, x1: x0 + w, y1: y0 + h };
+            if (box.x0 < 2 || box.y0 < 2 || box.x1 > view.W - 2 || box.y1 > view.H - 2 || overlaps(box, boxes)) {
+                continue;
+            }
+            label.setAttribute("x", String(anchor === "start" ? x0 : anchor === "end" ? x0 + w : x0 + w / 2));
+            label.setAttribute("y", String(y0 + h - 3));
+            label.setAttribute("text-anchor", anchor);
+            label.style.display = "";
+            boxes.push(box);
+            return true;
+        }
+        label.style.display = "none";
+        return false;
     }
 
     /** Highlights the flows and terminals carrying the given routes and fades the rest (null: all). */
@@ -363,6 +429,14 @@ export class FlowLayer {
             if (!on(n.routeIds)) {
                 const els = this.nodeEls[i];
                 if (els.dot) dim.add(els.dot);
+                if (els.label) dim.add(els.label);
+            }
+        });
+        // Chokepoints the highlighted routes don't pass fade too, so a hovered route shows its passages.
+        this.chokes.forEach((c, i) => {
+            if (!on(c.routeIds)) {
+                const els = this.chokeEls[i];
+                dim.add(els.mark);
                 if (els.label) dim.add(els.label);
             }
         });

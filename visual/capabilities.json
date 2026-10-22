@@ -527,6 +527,65 @@
                 }
             }
         },
+        "chokepoints": {
+            "properties": {
+                "show": {
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "which": {
+                    "type": {
+                        "enumeration": [
+                            {
+                                "value": "all",
+                                "displayName": "all"
+                            },
+                            {
+                                "value": "canals",
+                                "displayName": "canals"
+                            },
+                            {
+                                "value": "panama",
+                                "displayName": "panama"
+                            }
+                        ]
+                    }
+                },
+                "onlyActive": {
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "label": {
+                    "type": {
+                        "enumeration": [
+                            {
+                                "value": "both",
+                                "displayName": "both"
+                            },
+                            {
+                                "value": "name",
+                                "displayName": "name"
+                            },
+                            {
+                                "value": "off",
+                                "displayName": "off"
+                            }
+                        ]
+                    }
+                },
+                "color": {
+                    "type": {
+                        "fill": {
+                            "solid": {
+                                "color": true
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "richTooltip": {
             "properties": {
                 "style": {
@@ -568,6 +627,11 @@
                     }
                 },
                 "shortNames": {
+                    "type": {
+                        "bool": true
+                    }
+                },
+                "pinOnClick": {
                     "type": {
                         "bool": true
                     }

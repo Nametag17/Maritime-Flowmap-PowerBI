@@ -27,13 +27,15 @@ import { VisualFormattingSettingsModel, choice, colorOr } from "./settings";
 import { parseDataView, ParsedData, Route } from "./data";
 import { buildModel, FlowModel, FlowStyle } from "./flows/model";
 import { FlowLayer, HoverTarget } from "./flows/render";
+import { chokepoints, ChokepointSet } from "./maritime/chokepoints";
 import { drawBasemap, needsHighRes } from "./map/basemap";
 import { geoHigh } from "./map/geo";
 import { View, WORLD } from "./map/mercator";
 import { THEMES, ThemeName, MapTheme } from "./map/themes";
 import { renderLegend } from "./ui/legend";
-import { describeSegment, describeNode, toPowerBI, TooltipContext } from "./ui/tooltip";
+import { describeSegment, describeNode, describeChokepoint, toPowerBI, TooltipContext, TipModel } from "./ui/tooltip";
 import { RichTooltip } from "./ui/richTooltip";
+import { PinnedCard } from "./ui/pinnedCard";
 import { boxOf, Box } from "./util";
 
 const MAX_K = 2 ** 11; // past ≈ Bing zoom 11 the 1:10m coastline only gets blockier
@@ -58,6 +60,7 @@ export class Visual implements IVisual {
     private help: HTMLDivElement;
     private flows: FlowLayer;
     private richTip: RichTooltip;
+    private pinCard: PinnedCard;
     private zoomBehavior: ZoomBehavior<SVGSVGElement, unknown>;
 
     private view: View = { W: 0, H: 0, t: zoomIdentity };
@@ -75,6 +78,9 @@ export class Visual implements IVisual {
     private routeByKey = new Map<string, number>();
     private selected: Set<number> | null = null;
     private hovered: Set<number> | null = null;
+    /** Routes of the pinned card, and what the card highlights among them (null: all of them). */
+    private pinned: Set<number> | null = null;
+    private pinFocus: Set<number> | null = null;
     private tooltip: TooltipContext | null = null;
     private tooltipItems: VisualTooltipDataItem[] = [];
     private tooltipIds: ISelectionId[] = [];
@@ -107,11 +113,21 @@ export class Visual implements IVisual {
         this.root.append(this.canvas, this.baseSvg, this.svg, this.legendEl, this.zoomBar, this.help);
         options.element.appendChild(this.root);
         this.richTip = new RichTooltip(this.root);
+        this.pinCard = new PinnedCard(this.root, {
+            highlight: ids => {
+                this.pinFocus = ids;
+                this.flows.highlight(this.currentHighlight());
+            },
+            close: () => {
+                this.unpin();
+                this.clearSelection();
+            }
+        });
 
         this.flows = new FlowLayer(this.baseSvg, this.svg, {
             hover: (target, event) => this.onHover(target, event),
             move: event => this.moveTooltip(event),
-            click: (ids, event) => this.onClick(ids, event),
+            click: (target, event) => this.onClick(target, event),
             context: (ids, event) => this.showContextMenu(ids, event)
         });
 
@@ -123,7 +139,10 @@ export class Visual implements IVisual {
             .on("end", () => { this.interacting = false; this.schedule(); });
         select(this.svg).call(this.zoomBehavior);
 
-        this.svg.addEventListener("click", () => this.clearSelection());
+        this.svg.addEventListener("click", () => {
+            this.unpin();
+            this.clearSelection();
+        });
         this.svg.addEventListener("contextmenu", e => { e.preventDefault(); this.showContextMenu([], e); });
 
         const button = (label: string, title: string, action: () => void) => {
@@ -193,6 +212,7 @@ export class Visual implements IVisual {
                     maritime: { follow: s.maritime.follow.value, blockArctic: s.maritime.blockArctic.value, approaches: s.maritime.approaches.value }
                 });
             }
+            const cp = s.chokepoints;
             this.flows.render(this.model, {
                 theme: this.theme,
                 terminals: choice(s.terminals.show),
@@ -203,26 +223,32 @@ export class Visual implements IVisual {
                 opacity: s.lines.opacity.value / 100,
                 motion: s.flowStyle.motion.value,
                 curvature: s.flowStyle.curvature.value / 100,
-                smooth: s.maritime.smooth.value
+                smooth: s.maritime.smooth.value,
+                chokepoints: cp.show.value ? chokepoints(data.routes, this.model.sea, choice<ChokepointSet>(cp.which), cp.onlyActive.value) : [],
+                chokeLabels: choice(cp.label),
+                chokeColor: this.chokeColor(),
+                format: this.format
             });
             this.tooltip = {
                 sea: this.model.sea, followTransits: s.maritime.follow.value,
                 shortNames: s.tooltip.shortNames.value, maxRows: s.tooltip.maxRows.value, colorOf: colors.of,
                 data, routes: data.routes, format: this.format, volumeName: data.names.volume,
                 colorName: data.names.color, canalName: data.names.canal, bundleFrom: choice(s.flowStyle.bundleFrom),
-                total: data.routes.reduce((sum, r) => sum + r.volume, 0)
+                total: data.routes.reduce((sum, r) => sum + r.volume, 0),
+                pinOnClick: s.tooltip.pinOnClick.value
             };
             this.renderLegend();
 
             if (dataKey !== this.dataKey) {
                 this.dataKey = dataKey;
+                this.unpin(); // route ids are rebuilt with the data
                 this.syncSelection(this.selection.getSelectionIds() as ISelectionId[]);
                 if (s.map.autoFit.value || !this.fitted) {
                     this.fit(false);
                 }
             }
             this.renderNow();
-            this.flows.highlight(this.hovered || this.selected);
+            this.flows.highlight(this.currentHighlight());
             this.events.renderingFinished(options);
         }
         catch (e) {
@@ -257,6 +283,7 @@ export class Visual implements IVisual {
         const kMin = Math.max(width, height) / WORLD;
         this.zoomBehavior.extent([[0, 0], [width, height]]).scaleExtent([kMin, MAX_K]);
         select(this.svg).call(this.zoomBehavior.transform, this.view.t); // re-clamp to the new size
+        this.pinCard.clamp();
     }
 
     private schedule(): void {
@@ -351,6 +378,12 @@ export class Visual implements IVisual {
         };
     }
 
+    /** Chokepoint markers stand out in the report's high-contrast foreground when that mode is on. */
+    private chokeColor(): string {
+        const palette = this.host.colorPalette;
+        return palette.isHighContrast ? palette.foreground.value : colorOr(this.settings.chokepoints.color, "#f2b134");
+    }
+
     /**
      * The measure's own format string, without Power BI's automatic display units: in oil and gas
      * "M" means thousand, so an auto "245.3M" would mislead. The dashboard shows full numbers.
@@ -374,6 +407,7 @@ export class Visual implements IVisual {
             terminals: choice(s.terminals.show),
             originColor: this.data.colorBound ? this.theme.other : colorOr(s.lines.color, "#e66c37"),
             destinationColor: colorOr(s.terminals.destinationColor, this.theme.destination),
+            chokeColor: s.chokepoints.show.value ? this.chokeColor() : null,
             unplaced: this.data.unplaced,
             collapsed: this.legendCollapsed,
             onToggle: () => {
@@ -386,12 +420,13 @@ export class Visual implements IVisual {
     }
 
     private showHelp(missing: string[]): void {
+        this.unpin();
         this.flows.render({
             style: "straight", bundleFrom: "origin", segments: [], nodes: [], places: new Map(), scale: () => 0, dmin: 0, dmax: 0,
             limited: 0, sea: new Map(), unrouted: 0
         }, {
             theme: this.theme, terminals: "off", labels: "off", shortNames: true, labelSize: 11, labelDensity: 1, opacity: 1,
-            motion: false, curvature: 0, smooth: true
+            motion: false, curvature: 0, smooth: true, chokepoints: [], chokeLabels: "off", chokeColor: "", format: this.format
         });
         this.model = null;
         this.legendEl.style.display = "none";
@@ -469,12 +504,44 @@ export class Visual implements IVisual {
         return [].concat(...routeIds.map(id => this.rowIds[id] || []));
     }
 
-    private onClick(routeIds: number[], event: MouseEvent): void {
+    /** A click selects (cross-filters) the item's routes and, unless adding to a selection, pins its card. */
+    private onClick(target: HoverTarget, event: MouseEvent): void {
         if (!this.host.hostCapabilities.allowInteractions) {
             return;
         }
         const multi = event.ctrlKey || event.metaKey || event.shiftKey;
-        this.selection.select(this.idsFor(routeIds), multi).then(ids => this.syncSelection(ids as ISelectionId[]));
+        if (this.settings.tooltip.pinOnClick.value && !multi) {
+            this.pin(target, event);
+        }
+        else {
+            this.unpin();
+        }
+        this.selection.select(this.idsFor(target.item.routeIds), multi).then(ids => this.syncSelection(ids as ISelectionId[]));
+    }
+
+    private pin(target: HoverTarget, event: MouseEvent): void {
+        this.hideTooltip();
+        this.hovered = null;
+        this.pinned = new Set(target.item.routeIds);
+        this.pinFocus = null;
+        const t = this.settings.tooltip, [x, y] = pointer(event, this.root);
+        // Every route goes into the card; it shows the first "Routes listed" and expands the rest.
+        this.pinCard.show(this.describe(target, { ...this.tooltip, maxRows: Infinity }), choice(t.theme), t.fontSize.value, x, y, t.maxRows.value);
+        this.flows.highlight(this.currentHighlight());
+    }
+
+    private unpin(): void {
+        if (this.pinned) {
+            this.pinned = null;
+            this.pinFocus = null;
+            this.pinCard.hide();
+            this.flows.highlight(this.currentHighlight());
+        }
+    }
+
+    /** What the map highlights: the pinned card's focus, else the hovered item, else the selection. */
+    private currentHighlight(): Set<number> | null {
+        return this.pinned ? this.pinFocus || this.pinned : this.hovered || this.selected;
     }
 
     private clearSelection(): void {
@@ -498,7 +565,11 @@ export class Visual implements IVisual {
             }
             this.selected = set.size ? set : null;
         }
-        this.flows.highlight(this.hovered || this.selected);
+        // The pinned card goes when its routes are no longer selected (clicked again, cleared, a bookmark).
+        if (this.pinned && (!this.selected || [...this.pinned].some(id => !this.selected.has(id)))) {
+            this.unpin();
+        }
+        this.flows.highlight(this.currentHighlight());
     }
 
     private showContextMenu(routeIds: number[], event: MouseEvent): void {
@@ -507,13 +578,16 @@ export class Visual implements IVisual {
     }
 
     private onHover(target: HoverTarget | null, event: MouseEvent | null): void {
+        if (this.pinned) {
+            return; // a pinned card holds the view still, e.g. for a screenshot
+        }
         this.hovered = target ? new Set(target.item.routeIds) : null;
-        this.flows.highlight(this.hovered || this.selected);
+        this.flows.highlight(this.currentHighlight());
         if (!target || !event || this.interacting) {
             this.hideTooltip();
             return;
         }
-        const model = target.kind === "node" ? describeNode(target.item, this.tooltip) : describeSegment(target.item, this.tooltip);
+        const model = this.describe(target, this.tooltip);
         const [x, y] = pointer(event, this.root);
         if (this.builtInTooltip()) {
             const t = this.settings.tooltip;
@@ -524,6 +598,12 @@ export class Visual implements IVisual {
         this.tooltipItems = toPowerBI(model);
         this.tooltipIds = this.idsFor(target.item.routeIds);
         this.host.tooltipService.show({ dataItems: this.tooltipItems, identities: this.tooltipIds, coordinates: [x, y], isTouchEvent: false });
+    }
+
+    private describe(target: HoverTarget, ctx: TooltipContext): TipModel {
+        return target.kind === "node" ? describeNode(target.item, ctx)
+            : target.kind === "choke" ? describeChokepoint(target.item, ctx, this.chokeColor())
+                : describeSegment(target.item, ctx);
     }
 
     private builtInTooltip(): boolean {

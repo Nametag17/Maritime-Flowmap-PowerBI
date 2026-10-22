@@ -17,6 +17,8 @@ export interface LegendArgs {
     terminals: "bubbles" | "dots" | "off";
     originColor: string;
     destinationColor: string;
+    /** Chokepoint marker color, or null when the markers are off. */
+    chokeColor: string | null;
     unplaced: { rows: number; volume: number };
     collapsed: boolean;
     onToggle: () => void;
@@ -113,6 +115,20 @@ export function renderLegend(container: HTMLDivElement, a: LegendArgs): void {
         dot(6, 4.5, a.originColor, a.theme.casing, 1);
         dot(22, 4, a.destinationColor, a.destinationColor, 0.22);
         row.append(key, div("", "Origin · Destination"));
+        body.append(row);
+    }
+
+    if (a.chokeColor) {
+        const row = div("wfm-legend-row");
+        const key = document.createElementNS(SVG_NS, "svg");
+        key.setAttribute("width", "14");
+        key.setAttribute("height", "12");
+        const mark = document.createElementNS(SVG_NS, "path");
+        for (const [k, v] of Object.entries({ d: "M7,1L12,6L7,11L2,6Z", fill: a.chokeColor, stroke: a.theme.casing, "stroke-width": 1.5 })) {
+            mark.setAttribute(k, String(v));
+        }
+        key.appendChild(mark);
+        row.append(key, div("", "Chokepoint: volume through it"));
         body.append(row);
     }
 
