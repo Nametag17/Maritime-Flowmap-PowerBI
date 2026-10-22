@@ -4,7 +4,7 @@
         "displayName": "Maritime Flow Map",
         "guid": "waterborneFlowMap997D23A5C88441438E3380877E4855D8",
         "visualClassName": "Visual",
-        "version": "1.2.3.0",
+        "version": "1.2.4.0",
         "description": "Seaborne cargo flows between terminals: bundled curves, great circles or canal-aware indicative sea routes, on a built-in map with no map service.",
         "supportUrl": "https://github.com/Nametag17/Maritime-Flowmap-PowerBI",
         "gitHubUrl": "https://github.com/Nametag17/Maritime-Flowmap-PowerBI"
@@ -22,5 +22,5 @@
     "capabilities": "capabilities.json",
     "dependencies": null,
     "stringResources": [],
-    "version": "1.2.3.0"
+    "version": "1.2.4.0"
 }

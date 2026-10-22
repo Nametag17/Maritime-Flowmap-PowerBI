@@ -27,12 +27,13 @@ import { VisualFormattingSettingsModel, choice, colorOr } from "./settings";
 import { parseDataView, ParsedData, Route } from "./data";
 import { buildModel, FlowModel, FlowStyle } from "./flows/model";
 import { FlowLayer, HoverTarget } from "./flows/render";
+import { chokepoints, ChokepointSet } from "./maritime/chokepoints";
 import { drawBasemap, needsHighRes } from "./map/basemap";
 import { geoHigh } from "./map/geo";
 import { View, WORLD } from "./map/mercator";
 import { THEMES, ThemeName, MapTheme } from "./map/themes";
 import { renderLegend } from "./ui/legend";
-import { describeSegment, describeNode, toPowerBI, TooltipContext } from "./ui/tooltip";
+import { describeSegment, describeNode, describeChokepoint, toPowerBI, TooltipContext } from "./ui/tooltip";
 import { RichTooltip } from "./ui/richTooltip";
 import { boxOf, Box } from "./util";
 
@@ -193,6 +194,7 @@ export class Visual implements IVisual {
                     maritime: { follow: s.maritime.follow.value, blockArctic: s.maritime.blockArctic.value, approaches: s.maritime.approaches.value }
                 });
             }
+            const cp = s.chokepoints;
             this.flows.render(this.model, {
                 theme: this.theme,
                 terminals: choice(s.terminals.show),
@@ -203,7 +205,11 @@ export class Visual implements IVisual {
                 opacity: s.lines.opacity.value / 100,
                 motion: s.flowStyle.motion.value,
                 curvature: s.flowStyle.curvature.value / 100,
-                smooth: s.maritime.smooth.value
+                smooth: s.maritime.smooth.value,
+                chokepoints: cp.show.value ? chokepoints(data.routes, this.model.sea, choice<ChokepointSet>(cp.which), cp.onlyActive.value) : [],
+                chokeLabels: choice(cp.label),
+                chokeColor: this.chokeColor(),
+                format: this.format
             });
             this.tooltip = {
                 sea: this.model.sea, followTransits: s.maritime.follow.value,
@@ -351,6 +357,12 @@ export class Visual implements IVisual {
         };
     }
 
+    /** Chokepoint markers stand out in the report's high-contrast foreground when that mode is on. */
+    private chokeColor(): string {
+        const palette = this.host.colorPalette;
+        return palette.isHighContrast ? palette.foreground.value : colorOr(this.settings.chokepoints.color, "#f2b134");
+    }
+
     /**
      * The measure's own format string, without Power BI's automatic display units: in oil and gas
      * "M" means thousand, so an auto "245.3M" would mislead. The dashboard shows full numbers.
@@ -374,6 +386,7 @@ export class Visual implements IVisual {
             terminals: choice(s.terminals.show),
             originColor: this.data.colorBound ? this.theme.other : colorOr(s.lines.color, "#e66c37"),
             destinationColor: colorOr(s.terminals.destinationColor, this.theme.destination),
+            chokeColor: s.chokepoints.show.value ? this.chokeColor() : null,
             unplaced: this.data.unplaced,
             collapsed: this.legendCollapsed,
             onToggle: () => {
@@ -391,7 +404,7 @@ export class Visual implements IVisual {
             limited: 0, sea: new Map(), unrouted: 0
         }, {
             theme: this.theme, terminals: "off", labels: "off", shortNames: true, labelSize: 11, labelDensity: 1, opacity: 1,
-            motion: false, curvature: 0, smooth: true
+            motion: false, curvature: 0, smooth: true, chokepoints: [], chokeLabels: "off", chokeColor: "", format: this.format
         });
         this.model = null;
         this.legendEl.style.display = "none";
@@ -513,7 +526,9 @@ export class Visual implements IVisual {
             this.hideTooltip();
             return;
         }
-        const model = target.kind === "node" ? describeNode(target.item, this.tooltip) : describeSegment(target.item, this.tooltip);
+        const model = target.kind === "node" ? describeNode(target.item, this.tooltip)
+            : target.kind === "choke" ? describeChokepoint(target.item, this.tooltip, this.chokeColor())
+                : describeSegment(target.item, this.tooltip);
         const [x, y] = pointer(event, this.root);
         if (this.builtInTooltip()) {
             const t = this.settings.tooltip;

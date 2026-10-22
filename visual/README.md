@@ -24,12 +24,26 @@ Rows without usable coordinates are counted in the legend rather than silently d
 
 ## Format pane
 
-Flow style · Maritime routes · Lines · Colors by category · Terminals · Terminal labels · Map · Tooltip · Legend.
+Flow style · Maritime routes · Chokepoints · Lines · Colors by category · Terminals · Terminal labels · Map · Tooltip · Legend.
 The Tooltip card switches between the built-in card and Power BI's tooltip; the latter also supports
 report page tooltips, filtered to the hovered routes.
 
-Clicking a flow or terminal cross-filters the other visuals on the page; right-click opens the
-Power BI context menu.
+**Chokepoints** marks the Panama Canal, Suez Canal, Bab El Mandeb, Strait of Hormuz and Cape of Good
+Hope (all, the two canals, or Panama only), labelled with the volume through each. With the Canal
+transit field bound, the volume counts the *recorded* transits, the same rule as a chokepoint filter
+(a route counts under every chokepoint it passed), so the map agrees with the report's filters.
+Without it, the Maritime style uses the drawn sea routes; other styles only mark the locations.
+Hovering a chokepoint highlights its routes; clicking it filters the page to them.
+
+Clicking a flow, terminal or chokepoint cross-filters the other visuals on the page; right-click opens
+the Power BI context menu.
+
+**Maritime routing:** routes go through every recorded transit and avoid tracked chokepoints that
+weren't recorded. When a record is inconsistent (e.g. Bab El Mandeb without Suez), the route keeps the
+recorded passages and may also use unrecorded ones (the tooltip says so). Records that still can't be
+followed sensibly fall back to the shortest route, flagged in the tooltip. Bind the Canal transit field:
+without it every route takes the shortest path, which for e.g. US East Coast → Southeast Asia is via
+Suez, not Panama.
 
 ## Build
 

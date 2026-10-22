@@ -5,7 +5,8 @@ import VisualTooltipDataItem = powerbi.extensibility.VisualTooltipDataItem;
 
 import { Route, ParsedData } from "../data";
 import { Segment, FlowNode } from "../flows/model";
-import { SeaRoute, PASSAGE_NAMES, KM_PER_NM } from "../maritime/routing";
+import { Chokepoint } from "../maritime/chokepoints";
+import { SeaRoute, PASSAGE_NAMES, KM_PER_NM, KPLER_TO_TAG } from "../maritime/routing";
 
 export interface TooltipContext {
     /** Maritime style: sea route per route id, and whether recorded transits are being followed. */
@@ -95,6 +96,13 @@ export function describeSegment(s: Segment, c: TooltipContext): TipModel {
             if (!sea.matched && r.canal !== null && c.followTransits) {
                 m.notes.push({ text: "Recorded transits could not be followed; the shortest route is shown.", warn: true });
             }
+            else if (r.canal !== null && c.followTransits) {
+                const tracked = new Set(Object.values(KPLER_TO_TAG));
+                const added = sea.via.filter(t => tracked.has(t) && !sea.recorded.some(x => KPLER_TO_TAG[x] === t));
+                if (added.length) {
+                    m.notes.push({ text: "Also passes " + added.map(t => PASSAGE_NAMES[t] || t).join(", ") + ", which the record doesn't list." });
+                }
+            }
         }
         m.facts.push(...extraTooltips(r, c));
         m.notes.push({ text: sea ? "Indicative sea route, not a vessel track · click to filter" : "Click to filter" });
@@ -141,6 +149,26 @@ export function describeNode(n: FlowNode, c: TooltipContext): TipModel {
     const name = (s: string) => (c.shortNames ? splitName(s)[0] : s);
     listRoutes(m, routes, n.vol, r => (r.origin.key === n.place.t.key ? "→ " + name(r.destination.name) : "← " + name(r.origin.name)), c);
     m.notes.push({ text: "Click to filter" });
+    return m;
+}
+
+export function describeChokepoint(p: Chokepoint, c: TooltipContext, color: string): TipModel {
+    const name = (n: string) => (c.shortNames ? splitName(n)[0] : n);
+    const routes = p.routeIds.map(id => c.routes[id]).sort((a, b) => b.volume - a.volume);
+    const m: TipModel = {
+        value: p.basis === "none" ? "—" : c.format(p.volume), caption: c.volumeName, color, title: p.name,
+        subs: c.total > 0 && p.volume > 0 ? [{ label: "Share", text: pct(p.volume / c.total) + " of the volume on the map" }] : [],
+        facts: p.basis === "none" ? [] : [{ label: "Routes", value: routes.length.toLocaleString() }], rows: [], notes: []
+    };
+    listRoutes(m, routes, p.volume, r => name(r.origin.name) + " → " + name(r.destination.name), c);
+    m.notes.push({
+        text: p.basis === "recorded" ? "Routes whose recorded transits include it (" + (c.canalName || "canal transit") + ")"
+            : p.basis === "drawn" ? "Routes drawn through it (no canal transit field bound)"
+                : "Bind a canal transit field to see the volume through it"
+    });
+    if (routes.length) {
+        m.notes.push({ text: "Click to filter" });
+    }
     return m;
 }
 

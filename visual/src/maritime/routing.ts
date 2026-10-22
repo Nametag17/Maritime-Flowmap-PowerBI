@@ -290,8 +290,10 @@ function viaPassages(s: number, t: number, order: string[], forbid: Set<string>)
 /**
  * Indicative sea route between two terminals. `canal` is the recorded transit list, "" or
  * "No Canal Transit" when none was recorded, or null when the field isn't bound (then only the
- * Arctic is avoided). Recorded transits that can't be honored sensibly (e.g. multi-leg voyages, or
- * more than 3× the free shortest path) fall back to the shortest route with matched = false.
+ * Arctic is avoided). When the recorded transits can't be honored strictly (an inconsistent record,
+ * e.g. Bab El Mandeb without Suez), the route keeps the recorded passages and may also use unrecorded
+ * ones. Records that still can't be honored sensibly (multi-leg voyages, or more than 3× the free
+ * shortest path) fall back to the shortest route with matched = false.
  */
 export function seaRoute(o: Terminal, d: Terminal, canal: string | null, opts: RouteOptions): SeaRoute | null {
     const key = o.key + ">" + d.key + ">" + (canal === null ? "\u0000" : canal) + ">" + opts.follow + opts.blockArctic;
@@ -324,6 +326,19 @@ export function seaRoute(o: Terminal, d: Terminal, canal: string | null, opts: R
         }
     }
     let matched = known;
+    if (required.length && (!best || best.km > freeKm * 3)) {
+        // Inconsistent record: keep the recorded passages, allow the unrecorded ones.
+        let relaxed: { km: number; nodes: number[] } | null = null;
+        for (const order of permutations(required)) {
+            const c = viaPassages(s, t, order, always);
+            if (c && (!relaxed || c.km < relaxed.km)) {
+                relaxed = c;
+            }
+        }
+        if (relaxed && relaxed.km <= freeKm * 3) {
+            best = relaxed;
+        }
+    }
     if (!best || best.km > freeKm * 3) {
         best = isFinite(freeKm) ? { km: freeKm, nodes: nodesTo(free, t) } : null;
         matched = false;
